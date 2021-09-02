@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 from gps3 import gps3
-import ST7789, random, time
+import ST7789, random, time, csv
 disp = ST7789.ST7789(
     port=0,
     cs=ST7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT
@@ -20,7 +20,8 @@ def display(measure, value, pos):
     print(f'{measure}: {value}')
 
 t1 = time.time()
-
+headers = ['longitude', 'latitude']
+rows = []
 gps_socket = gps3.GPSDSocket()
 data_stream = gps3.DataStream()
 gps_socket.connect()
@@ -38,29 +39,36 @@ def minute(time):
         secs = time
     return f'{mins} minutes {secs} seconds'
 #((s1+s2)/2)*(t1-t2)
-for new_data in gps_socket:
-    if new_data:
-        data_stream.unpack(new_data)
-        
-        speed = data_stream.TPV['speed']
-        pT = time.time() - t1
-        
-        if speed == 'n/a':
-            d = 'n/a'
-        else:
-            speed *= 3.6
-            t.append(pT)
-            s.append(speed/3600)
-        
-        if len(t) <= 1:
-            d = 'n/a'
-        else:
-            d = ((s[0]+s[1])/2)*(t[1]-t[0])
-            tD += d
-            del t[0]
-            del s[0]
-        print(tD)
-        display('Distance', tD, 10)
-        display('Speed', speed, 50)
-        display('Time', minute(round(pT, 2)), 90)
-        disp.display(img)
+with open('coors.csv','w',encoding='UTF8',newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(headers)    
+    for new_data in gps_socket:
+        if new_data:
+            data_stream.unpack(new_data)
+            long = data_stream.TPV['lon']
+            lat = data_stream.TPV['lat']
+
+            speed = data_stream.TPV['speed']
+            pT = time.time() - t1
+            
+            if speed == 'n/a':
+                d = 'n/a'
+            else:
+                speed *= 3.6
+                t.append(pT)
+                s.append(speed/3600)
+                
+            if len(t) <= 1:
+                d = 'n/a'
+            else:
+                d = ((s[0]+s[1])/2)*(t[1]-t[0])
+                tD += d
+                del t[0]
+                del s[0]
+            print(tD)
+            display('Distance', tD, 10)
+            display('Speed', speed, 50)
+            display('Time', minute(round(pT, 2)), 90)
+            disp.display(img)
+            writer.writerow([long, lat])
+            
